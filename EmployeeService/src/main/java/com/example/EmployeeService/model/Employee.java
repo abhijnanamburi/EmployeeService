@@ -24,7 +24,7 @@ public class Employee {
     
 	@ElementCollection
 	private List<String> phoneNumbers;
-	private LocalDate doj;
+	private String doj;
 	private double salary;
 
 	private Employee() {
@@ -32,7 +32,7 @@ public class Employee {
 	}
 
 	public Employee(String employeeId, String firstName, String lastName, String email, List<String> phoneNumbers,
-			LocalDate doj, double salary) {
+			String doj, double salary) {
 		super();
 		this.employeeId = employeeId;
 		this.firstName = firstName;
@@ -91,11 +91,11 @@ public class Employee {
 		this.phoneNumbers = phoneNumbers;
 	}
 
-	public LocalDate getDoj() {
+	public String getDoj() {
 		return doj;
 	}
 
-	public void setDoj(LocalDate doj) {
+	public void setDoj(String doj) {
 		this.doj = doj;
 	}
 

@@ -1,7 +1,9 @@
 package com.example.EmployeeService.Controller;
 
 import java.time.LocalDate;
+import java.time.Month;
 import java.time.Year;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -50,49 +52,57 @@ public class EmployeeController {
 	@GetMapping("/tax-deductions")
 	public ResponseEntity<List<TaxDeduction>> calculateTaxDeductions() {
 		List<Employee> employees = employeeRepository.findAll();
-		List<TaxDeduction> taxDeductions = new ArrayList<>();
 
-		for (Employee employee : employees) {
-			LocalDate currentDate = LocalDate.now();
-			Year financialYear = Year.now();
-
-			if (currentDate.getMonthValue() < 4) {
-				financialYear = financialYear.minusYears(1);
-			}
-
-			LocalDate financialYearStart = LocalDate.of(financialYear.getValue(), 4, 1);
-			LocalDate financialYearEnd = LocalDate.of(financialYear.plusYears(1).getValue(), 3, 31);
-
-			LocalDate joiningDate = employee.getDoj();
-
-			if (joiningDate.isAfter(financialYearStart)) {
-				financialYearStart = joiningDate;
-			}
-
-			double totalSalary = (employee.getSalary() / 30)
-					* ChronoUnit.DAYS.between(financialYearStart, financialYearEnd);
-
-			double taxAmount = 0;
-			if (totalSalary > 1000000) {
-				taxAmount = (totalSalary - 1000000) * 0.2 + 500000 * 0.1 + 250000 * 0.05;
-			} else if (totalSalary > 500000) {
-				taxAmount = (totalSalary - 500000) * 0.1 + 250000 * 0.05;
-			} else if (totalSalary > 250000) {
-				taxAmount = (totalSalary - 250000) * 0.05;
-			}
-
-			double cessAmount = 0;
-			if (totalSalary > 2500000) {
-				cessAmount = (totalSalary - 2500000) * 0.02;
-			}
-
-			TaxDeduction taxDeduction = new TaxDeduction(employee.getEmployeeId(), employee.getFirstName(),
-					employee.getLastName(), totalSalary, taxAmount, cessAmount);
-
-			taxDeductions.add(taxDeduction);
-		}
-
-		return ResponseEntity.ok(taxDeductions);
+        List<TaxDeduction> taxDeductions = new ArrayList<>();
+        for (Employee employee : employees) {
+            double totalSalary = calculateTotalSalary(employee);
+            double taxAmount = calculateTax(totalSalary);
+            double cessAmount = calculateCess(totalSalary);
+            TaxDeduction taxDeduction = new TaxDeduction(employee.getEmployeeId(), employee.getFirstName(),
+                    employee.getLastName(), employee.getSalary() * 12, taxAmount, cessAmount);
+            taxDeductions.add(taxDeduction);
+        }
+        return ResponseEntity.ok(taxDeductions);
 	}
 
+	private double calculateTotalSalary(Employee employee) {
+	    double totalSalary = employee.getSalary();
+	    LocalDate doj = LocalDate.parse(employee.getDoj(), DateTimeFormatter.ISO_DATE);
+	    int joiningYear = doj.getYear();
+	    int joiningMonth = doj.getMonthValue();
+
+	    if (joiningMonth >= 4) {
+	        totalSalary *= 12;
+	    } else {
+	        totalSalary *= 12 - 1;
+	        joiningYear -= 1;
+	    }
+
+	    LocalDate financialYearStart = LocalDate.of(joiningYear, Month.APRIL, 1);
+
+	    if (doj.isBefore(financialYearStart)) {
+	        totalSalary -= employee.getSalary() * (financialYearStart.until(doj, ChronoUnit.DAYS) / 30.0);
+	    }
+
+	    return totalSalary;}
+
+    private double calculateTax(double totalSalary) {
+        if (totalSalary <= 250000) {
+            return 0;
+        } else if (totalSalary <= 500000) {
+            return (totalSalary - 250000) * 0.05;
+        } else if (totalSalary <= 1000000) {
+            return 12500 + (totalSalary - 500000) * 0.1;
+        } else {
+            return 12500 + 50000 + (totalSalary - 1000000) * 0.2;
+        }
+    }
+
+    private double calculateCess(double totalSalary) {
+        if (totalSalary > 2500000) {
+            return (totalSalary - 2500000) * 0.02;
+        } else {
+            return 0;
+        }
+    }
 }
